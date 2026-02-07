@@ -62,7 +62,7 @@
 
 ### Exercice 1 — Collecte des données et intégration
 
-L'objectif de cet exercice est de collecter les données des taxis jaunes de la ville de New York. Nous avons décidé de prendre les mois de juin et décembre 2024 afin de faire des comparaison plus tard. Ces données sont téléchargées depuis le site officiel de la ville de New York et stockées dans un Data Lake représenté par le service MinIO.
+L'objectif de cet exercice est de collecter les données des taxis jaunes de la ville de New York. Nous avons décidé de prendre les mois de juin et décembre 2024 afin de faire des comparaisons plus tard. Ces données sont téléchargées depuis le site officiel de la ville de New York et stockées dans un Data Lake représenté par le service MinIO.
 
 #### Étapes :
 1. **Téléchargement des fichiers** : Les fichiers `yellow_tripdata_2024-06.parquet` et `yellow_tripdata_2024-12.parquet` sont téléchargés et placés dans le dossier `data/raw`.
@@ -156,7 +156,7 @@ L'objectif de cet exercice est de concevoir un modèle de Machine Learning capab
    - Une interface Streamlit a été développée pour permettre aux utilisateurs de tester le modèle en temps réel. Elle inclut un formulaire interactif pour saisir les paramètres d'une course et afficher le prix estimé.
 
 #### Résultat :
-La page de streamlit inclus les résultats de l'exercice précedent et la prédiction des prix des courses.
+La page de streamlit inclut les résultats de l'exercice précédent et la prédiction des prix des courses.
 
 <img src="images/5.png" alt="Streamlit" width="400" />
 <img src="images/6.png" alt="Streamlit" width="400" />
