@@ -1,6 +1,6 @@
 services:
   spark-master:
-    build: ./docker
+    build: ./Docker
     container_name: spark-master
     environment:
       - SPARK_MODE=master
@@ -21,7 +21,7 @@ services:
       retries: 10
 
   spark-worker-1:
-    build: ./docker
+    build: ./Docker
     container_name: spark-worker-1
     depends_on:
       - spark-master
@@ -42,7 +42,7 @@ services:
       - spark-network
 
   spark-worker-2:
-    build: ./docker
+    build: ./Docker
     container_name: spark-worker-2
     depends_on:
       - spark-master
@@ -62,20 +62,114 @@ services:
     networks:
       - spark-network
 
-  # MinIO (S3-compatible storage)
   minio:
     hostname: minio
     container_name: minio
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     ports:
-      - '9000:9000'  # Changed from 9000 to avoid HDFS conflict
-      - '9001:9001'
-    #   volumes:
-    #     - ./minio-data:/data
+      - "9000:9000"
+      - "9001:9001"
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio123
     command: server /data --console-address ":9001"
+    networks:
+      - spark-network
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    networks:
+      - spark-network
+
+  # ---------------- AIRFLOW ----------------
+  airflow-postgres:
+    image: postgres:15
+    container_name: airflow-postgres
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    networks:
+      - spark-network
+
+  airflow-init:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: airflow-init
+    depends_on:
+      - airflow-postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "bigdata_secret_key_123"
+    volumes:
+      - ./ex06_airflow/dag:/opt/airflow/dags
+      - ./:/opt/project
+    entrypoint: /bin/bash
+    command: >
+      -c "until pg_isready -h airflow-postgres -p 5432 -U airflow; do sleep 1; done && \
+          airflow db init && \
+          airflow users create --username airflow --password airflow --firstname Admin --lastname Admin --role Admin --email admin@example.com"
+
+    networks:
+      - spark-network
+
+  airflow-webserver:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    user: "0:0"
+    container_name: airflow-webserver
+    depends_on:
+      - airflow-postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "bigdata_secret_key_123"
+    volumes:
+      - ./ex06_airflow/dag:/opt/airflow/dags
+      - ./:/opt/project
+    ports:
+      - "8080:8080" # Pour Airflow
+      - "8501:8501" # POUR STREAMLIT
+    command: >
+      bash -c "nohup streamlit run /opt/project/ex05_ml_prediction_service/app2.py --server.headless true --server.port 8501 --server.address 0.0.0.0 > /tmp/streamlit.log 2>&1 & \
+                   until pg_isready -h airflow-postgres -p 5432 -U airflow >/dev/null 2>&1; do \
+                     echo 'Waiting for postgres...'; \
+                     sleep 1; \
+                   done; \
+                   airflow webserver"
+    networks:
+      - spark-network
+  airflow-scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    user: "0:0"
+    container_name: airflow-scheduler
+    depends_on:
+      - airflow-postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "bigdata_secret_key_123"
+    volumes:
+      - ./ex06_airflow/dag:/opt/airflow/dags
+      - ./:/opt/project
+    command: scheduler
     networks:
       - spark-network
 

@@ -51,3 +51,4 @@ minio-data
 
 ### Hadoop ###
 hadoop
+ex05_ml_prediction_service/taxi_model.joblib
